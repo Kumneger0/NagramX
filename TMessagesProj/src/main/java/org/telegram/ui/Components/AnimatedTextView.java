@@ -23,6 +23,7 @@ import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
+import android.os.Looper;
 import android.text.Layout;
 import android.text.StaticLayout;
 import android.text.TextPaint;
@@ -331,9 +332,7 @@ public class AnimatedTextView extends View {
                 ellipsizeGradientMatrix.reset();
                 ellipsizeGradientMatrix.postTranslate(bounds.right - rightPadding - w, 0);
                 ellipsizeGradient.setLocalMatrix(ellipsizeGradientMatrix);
-                canvas.save();
                 canvas.drawRect(bounds.right - rightPadding - w, bounds.top, bounds.right - rightPadding + AndroidUtilities.dp(1), bounds.bottom, ellipsizePaint);
-                canvas.restore();
                 canvas.restore();
             }
         }
@@ -1228,6 +1227,11 @@ public class AnimatedTextView extends View {
 
     private boolean first = true;
     public void setText(CharSequence text, boolean animated, boolean moveDown) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            boolean finalAnimated = animated;
+            AndroidUtilities.runOnUIThread(() -> setText(text, finalAnimated, moveDown));
+            return;
+        }
         animated = !first && animated;
         first = false;
         if (animated && !TextUtils.equals(text, drawable.getText())) {

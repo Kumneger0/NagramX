@@ -102,7 +102,7 @@ import tw.nekomimi.nekogram.NekoXConfig;
 import tw.nekomimi.nekogram.filters.AyuFilter;
 import xyz.nextalone.nagram.NaConfig;
 
-public class NotificationsController extends BaseController {
+public class NotificationsController extends BaseController implements NotificationCenter.NotificationCenterDelegate {
 
     public static final String EXTRA_VOICE_REPLY = "extra_voice_reply";
     public static String OTHER_NOTIFICATIONS_CHANNEL = null;
@@ -119,6 +119,7 @@ public class NotificationsController extends BaseController {
     private final LongSparseArray<Integer> wearNotificationsIds = new LongSparseArray<>();
     private final LongSparseArray<Integer> lastWearNotifiedMessageId = new LongSparseArray<>();
     private final LongSparseArray<Integer> pushDialogsOverrideMention = new LongSparseArray<>();
+    private final HashSet<String> pendingVoiceLoads = new HashSet<>();
     public final ArrayList<MessageObject> popupMessages = new ArrayList<>();
     public ArrayList<MessageObject> popupReplyMessages = new ArrayList<>();
     private final HashSet<Long> openedInBubbleDialogs = new HashSet<>();
@@ -251,6 +252,10 @@ public class NotificationsController extends BaseController {
         };
 
         dialogsNotificationsFacade = new NotificationsSettingsFacade(currentAccount);
+
+        AndroidUtilities.runOnUIThread(() -> {
+            getNotificationCenter().addObserver(this, NotificationCenter.fileLoaded);
+        });
     }
 
     public static void checkOtherNotificationsChannel() {
@@ -545,7 +550,9 @@ public class NotificationsController extends BaseController {
                             smartNotificationsDialogs.remove(dialogId);
                         }
                         if (!newCount.equals(currentCount)) {
-                            if (getMessagesController().isForum(dialogId)) {
+                            if (getMessagesController().isCommunity(dialogId)) {
+
+                            } else if (getMessagesController().isForum(dialogId)) {
                                 total_unread_count -= currentCount > 0 ? 1 : 0;
                                 total_unread_count += newCount > 0 ? 1 : 0;
                             } else {
@@ -642,7 +649,9 @@ public class NotificationsController extends BaseController {
                     smartNotificationsDialogs.remove(dialogId);
                 }
                 if (!newCount.equals(currentCount)) {
-                    if (getMessagesController().isForum(dialogId)) {
+                    if (getMessagesController().isCommunity(dialogId)) {
+
+                    } else if (getMessagesController().isForum(dialogId)) {
                         total_unread_count -= currentCount > 0 ? 1 : 0;
                         total_unread_count += newCount > 0 ? 1 : 0;
                     } else {
@@ -1080,6 +1089,9 @@ public class NotificationsController extends BaseController {
                 if (AyuFilter.isBlockedChannel(messageObject.getFromChatId())) {
                     continue;
                 }
+                if (!messageObject.isOauthPush && AyuFilter.isFiltered(messageObject, null)) {
+                    continue;
+                }
                 if (messageObject.isStoryPush) {
                     long date = messageObject.messageOwner == null ? System.currentTimeMillis() : messageObject.messageOwner.date * 1000L;
                     long dialogId = messageObject.getDialogId();
@@ -1324,7 +1336,9 @@ public class NotificationsController extends BaseController {
                     canAddValue = canAddValue && !messageObject.isStoryPush;
 
                     if (canAddValue) {
-                        if (getMessagesController().isForum(dialog_id)) {
+                        if (getMessagesController().isCommunity(dialog_id)) {
+
+                        } else if (getMessagesController().isForum(dialog_id)) {
                             total_unread_count -= currentCount != null && currentCount > 0 ? 1 : 0;
                             total_unread_count += newCount > 0 ? 1 : 0;
                         } else {
@@ -1391,7 +1405,7 @@ public class NotificationsController extends BaseController {
                 boolean forum = false;
                 if (DialogObject.isChatDialog(dialogId)) {
                     TLRPC.Chat chat = getMessagesController().getChat(-dialogId);
-                    if (chat == null || chat.min || ChatObject.isNotInChat(chat)) {
+                    if (chat == null || chat.min || ChatObject.isNotInChat(chat) || ChatObject.isCommunity(chat)) {
                         newCount = 0;
                     }
                     if (chat != null) {
@@ -1468,7 +1482,9 @@ public class NotificationsController extends BaseController {
                         }
                     }
                 } else if (canAddValue) {
-                    if (getMessagesController().isForum(dialogId)) {
+                    if (getMessagesController().isCommunity(dialogId)) {
+
+                    } else if (getMessagesController().isForum(dialogId)) {
                         total_unread_count += newCount > 0 ? 1 : 0;
                     } else {
                         total_unread_count += newCount;
@@ -1600,7 +1616,9 @@ public class NotificationsController extends BaseController {
                 }
                 int count = dialogs.valueAt(a);
                 pushDialogs.put(dialog_id, count);
-                if (getMessagesController().isForum(dialog_id)) {
+                if (getMessagesController().isCommunity(dialog_id)) {
+
+                } else if (getMessagesController().isForum(dialog_id)) {
                     total_unread_count += count > 0 ? 1 : 0;
                 } else {
                     total_unread_count += count;
@@ -1667,7 +1685,9 @@ public class NotificationsController extends BaseController {
                     Integer currentCount = pushDialogs.get(dialogId);
                     int newCount = currentCount != null ? currentCount + 1 : 1;
 
-                    if (getMessagesController().isForum(dialogId)) {
+                    if (getMessagesController().isCommunity(dialogId)) {
+
+                    } else if (getMessagesController().isForum(dialogId)) {
                         if (currentCount != null) {
                             total_unread_count -= currentCount > 0 ? 1 : 0;
                         }
@@ -1716,55 +1736,61 @@ public class NotificationsController extends BaseController {
     private int getTotalAllUnreadCount() {
         int count = 0;
         for (int a = 0; a < UserConfig.MAX_ACCOUNT_COUNT; a++) {
-            if (!UserConfig.getInstance(a).isClientActivated() || !SharedConfig.showNotificationsForAllAccounts && UserConfig.selectedAccount != a) {
+            if (!UserConfig.getInstance(a).isClientActivated()) {
                 continue;
             }
-            NotificationsController controller = getInstance(a);
-            if (controller.showBadgeNumber) {
-                if (controller.showBadgeMessages) {
-                    if (controller.showBadgeMuted) {
-                        try {
-                            final ArrayList<TLRPC.Dialog> dialogs = new ArrayList<>(MessagesController.getInstance(a).allDialogs);
-                            for (int i = 0, N = dialogs.size(); i < N; i++) {
-                                TLRPC.Dialog dialog = dialogs.get(i);
-                                if (dialog != null && DialogObject.isChatDialog(dialog.id)) {
-                                    TLRPC.Chat chat = getMessagesController().getChat(-dialog.id);
-                                    if (ChatObject.isNotInChat(chat)) {
-                                        continue;
-                                    }
-                                }
-                                if (dialog != null) {
-                                    count += MessagesController.getInstance(a).getDialogUnreadCount(dialog);
+            if (!SharedConfig.showNotificationsForAllAccounts && UserConfig.selectedAccount != a) {
+                continue;
+            }
+
+            final NotificationsController controller = getInstance(a);
+            if (!controller.showBadgeNumber) {
+                continue;
+            }
+
+            if (controller.showBadgeMessages) {
+                if (controller.showBadgeMuted) {
+                    try {
+                        final ArrayList<TLRPC.Dialog> dialogs = new ArrayList<>(MessagesController.getInstance(a).allDialogs);
+                        for (int i = 0, N = dialogs.size(); i < N; i++) {
+                            TLRPC.Dialog dialog = dialogs.get(i);
+                            if (dialog != null && DialogObject.isChatDialog(dialog.id)) {
+                                TLRPC.Chat chat = getMessagesController().getChat(-dialog.id);
+                                if (ChatObject.isNotInChat(chat) || ChatObject.isCommunity(chat)) {
+                                    continue;
                                 }
                             }
-                        } catch (Exception e) {
-                            FileLog.e(e);
+                            if (dialog != null) {
+                                count += MessagesController.getInstance(a).getDialogUnreadCount(dialog);
+                            }
                         }
-                    } else {
-                        count += controller.total_unread_count;
+                    } catch (Exception e) {
+                        FileLog.e(e);
                     }
                 } else {
-                    if (controller.showBadgeMuted) {
-                        try {
-                            for (int i = 0, N = MessagesController.getInstance(a).allDialogs.size(); i < N; i++) {
-                                TLRPC.Dialog dialog = MessagesController.getInstance(a).allDialogs.get(i);
-                                if (DialogObject.isChatDialog(dialog.id)) {
-                                    TLRPC.Chat chat = getMessagesController().getChat(-dialog.id);
-                                    if (ChatObject.isNotInChat(chat)) {
-                                        continue;
-                                    }
-                                }
-                                if (MessagesController.getInstance(a).getDialogUnreadCount(dialog) != 0) {
-                                    count++;
+                    count += controller.total_unread_count;
+                }
+            } else {
+                if (controller.showBadgeMuted) {
+                    try {
+                        for (int i = 0, N = MessagesController.getInstance(a).allDialogs.size(); i < N; i++) {
+                            TLRPC.Dialog dialog = MessagesController.getInstance(a).allDialogs.get(i);
+                            if (DialogObject.isChatDialog(dialog.id)) {
+                                TLRPC.Chat chat = getMessagesController().getChat(-dialog.id);
+                                if (ChatObject.isNotInChat(chat) || ChatObject.isCommunity(chat)) {
+                                    continue;
                                 }
                             }
-                        } catch (Exception e) {
-                            //ignore, no thread synchronizations for fast
-                            FileLog.e(e, false);
+                            if (MessagesController.getInstance(a).getDialogUnreadCount(dialog) != 0) {
+                                count++;
+                            }
                         }
-                    } else {
-                        count += controller.pushDialogs.size();
+                    } catch (Exception e) {
+                        //ignore, no thread synchronizations for fast
+                        FileLog.e(e, false);
                     }
+                } else {
+                    count += controller.pushDialogs.size();
                 }
             }
         }
@@ -1789,7 +1815,7 @@ public class NotificationsController extends BaseController {
                 !NaConfig.INSTANCE.getShowNotificationPreviewWhenLocked().Bool();
     }
 
-    private String getShortStringForMessage(MessageObject messageObject, String[] userName, boolean[] preview) {
+    public String getShortStringForMessage(MessageObject messageObject, String[] userName, boolean[] preview) {
         if (shouldHideNotificationContentForPasscode()) {
             return LocaleController.getString(R.string.NotificationHiddenMessage);
         }
@@ -1908,6 +1934,9 @@ public class NotificationsController extends BaseController {
             return LocaleController.getString(R.string.NotificationHiddenMessage);
         } else {
             boolean isChannel = ChatObject.isChannel(chat) && !chat.megagroup;
+            if (messageObject.messageOwner != null && messageObject.messageOwner.rich_message != null) {
+                return messageObject.messageText.toString();
+            }
             if (dialogPreviewEnabled && (chat_id == 0 && fromId != 0 && preferences.getBoolean("EnablePreviewAll", true) || chat_id != 0 && (!isChannel && preferences.getBoolean("EnablePreviewGroup", true) || isChannel && preferences.getBoolean("EnablePreviewChannel", true)))) {
                 if (messageObject.messageOwner instanceof TLRPC.TL_messageService) {
                     userName[0] = null;
@@ -3285,6 +3314,26 @@ public class NotificationsController extends BaseController {
             AndroidUtilities.runOnUIThread(() -> NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.pushMessagesUpdated));
         } catch (Exception e) {
             FileLog.e(e);
+        }
+    }
+
+    public ArrayList<MessageObject> getPushMessagesSnapshot() {
+        ArrayList<MessageObject> copy;
+        synchronized (this) {
+            copy = new ArrayList<>(pushMessages);
+        }
+        return copy;
+    }
+
+    @Override
+    public void didReceivedNotification(int id, int account, Object... args) {
+        if (id == NotificationCenter.fileLoaded) {
+            String path = (String) args[0];
+            notificationsQueue.postRunnable(() -> {
+                if (pendingVoiceLoads.remove(path)) {
+                    showOrUpdateNotification(true);
+                }
+            });
         }
     }
 
@@ -5112,6 +5161,20 @@ public class NotificationsController extends BaseController {
                 replyIntent.putExtra("max_id", maxId);
                 replyIntent.putExtra("topic_id", topicId);
                 replyIntent.putExtra("currentAccount", currentAccount);
+                if (messageObjects != null && !messageObjects.isEmpty()) {
+                    ArrayList<Integer> voiceIdsList = new ArrayList<>();
+                    for (int vi = 0; vi < messageObjects.size(); vi++) {
+                        MessageObject vmo = messageObjects.get(vi);
+                        if (vmo != null && vmo.isVoice() && vmo.isContentUnread() && !vmo.isOut()) {
+                            voiceIdsList.add(vmo.getId());
+                        }
+                    }
+                    if (!voiceIdsList.isEmpty()) {
+                        int[] voiceIds = new int[voiceIdsList.size()];
+                        for (int vi = 0; vi < voiceIds.length; vi++) voiceIds[vi] = voiceIdsList.get(vi);
+                        replyIntent.putExtra("voice_msg_ids", voiceIds);
+                    }
+                }
                 PendingIntent replyPendingIntent = PendingIntent.getBroadcast(ApplicationLoader.applicationContext, internalId, replyIntent, PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
                 RemoteInput remoteInputWear = new RemoteInput.Builder(EXTRA_VOICE_REPLY).setLabel(LocaleController.getString(R.string.Reply)).build();
                 String replyToString;
@@ -5230,6 +5293,9 @@ public class NotificationsController extends BaseController {
                         continue;
                     }
                     if (AyuFilter.isBlockedChannel(messageObject.getFromChatId())) {
+                        continue;
+                    }
+                    if (!messageObject.isOauthPush && AyuFilter.isFiltered(messageObject, null)) {
                         continue;
                     }
                     String message = getShortStringForMessage(messageObject, senderName, preview);
@@ -5428,19 +5494,27 @@ public class NotificationsController extends BaseController {
                             List<NotificationCompat.MessagingStyle.Message> messages = messagingStyle.getMessages();
                             if (!messages.isEmpty()) {
                                 File f = getFileLoader().getPathToMessage(messageObject.messageOwner);
-                                Uri uri;
-                                if (Build.VERSION.SDK_INT >= 24) {
-                                    try {
-                                        uri = FileProvider.getUriForFile(ApplicationLoader.applicationContext, ApplicationLoader.getApplicationId() + ".provider", f);
-                                    } catch (Exception ignore) {
-                                        uri = null;
+                                if (f.exists()) {
+                                    Uri uri;
+                                    if (Build.VERSION.SDK_INT >= 24) {
+                                        try {
+                                            uri = FileProvider.getUriForFile(ApplicationLoader.applicationContext, ApplicationLoader.getApplicationId() + ".provider", f);
+                                        } catch (Exception ignore) {
+                                            uri = null;
+                                        }
+                                    } else {
+                                        uri = Uri.fromFile(f);
                                     }
-                                } else {
-                                    uri = Uri.fromFile(f);
-                                }
-                                if (uri != null) {
-                                    NotificationCompat.MessagingStyle.Message addedMessage = messages.get(messages.size() - 1);
-                                    addedMessage.setData("audio/ogg", uri);
+                                    if (uri != null) {
+                                        NotificationCompat.MessagingStyle.Message addedMessage = messages.get(messages.size() - 1);
+                                        addedMessage.setData("audio/ogg", uri);
+                                    }
+                                } else if (messageObject.getDocument() != null) {
+                                    String fileName = FileLoader.getAttachFileName(messageObject.getDocument());
+                                    if (!pendingVoiceLoads.contains(fileName)) {
+                                        pendingVoiceLoads.add(fileName);
+                                        getFileLoader().loadFile(messageObject.getDocument(), messageObject, FileLoader.PRIORITY_HIGH, 0);
+                                    }
                                 }
                             }
                         }
@@ -6045,8 +6119,15 @@ public class NotificationsController extends BaseController {
             topicPeer.top_msg_id = (int) topicId;
             req.peer = topicPeer;
         } else {
-            req.peer = new TLRPC.TL_inputNotifyPeer();
-            ((TLRPC.TL_inputNotifyPeer) req.peer).peer = getMessagesController().getInputPeer(dialogId);
+            if (ChatObject.isCommunity(currentAccount, dialogId)) {
+                TLRPC.TL_inputNotifyCommunity inputNotifyCommunity = new TLRPC.TL_inputNotifyCommunity();
+                inputNotifyCommunity.community = getMessagesController().getInputChannel(-dialogId);
+                req.peer = inputNotifyCommunity;
+            } else {
+                TLRPC.TL_inputNotifyPeer inputNotifyPeer = new TLRPC.TL_inputNotifyPeer();
+                inputNotifyPeer.peer = getMessagesController().getInputPeer(dialogId);
+                req.peer = inputNotifyPeer;
+            }
         }
 
         getConnectionsManager().sendRequest(req, (response, error) -> {

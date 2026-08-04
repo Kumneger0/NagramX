@@ -33,6 +33,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -588,14 +589,6 @@
             </intent-filter>
         </receiver>
 
-        <receiver
-            android:name=".AutoMessageReplyReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="org.telegram.messenger.ACTION_MESSAGE_REPLY"/>
-            </intent-filter>
-        </receiver>
-
         <!-- <receiver
             android:name=".SmsReceiver"
             android:exported="true">
@@ -652,7 +645,7 @@
             android:name=".NotificationsService"
             android:enabled="true"
             android:exported="true"
-            android:foregroundServiceType="dataSync"
+            android:foregroundServiceType="remoteMessaging"
         />
         <service
             android:name=".NotificationRepeat"
@@ -746,6 +739,15 @@
         </receiver>
 
         <receiver android:name=".WearReplyReceiver" android:enabled="true" android:exported="false"/>
+
+        <service
+            android:name=".WearAuthListenerService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+                <data android:scheme="wear" android:host="*" android:pathPrefix="/tg-wear-auth/" />
+            </intent-filter>
+        </service>
 
         <receiver android:name=".StopLiveLocationReceiver" android:enabled="true" android:exported="false"/>
 
@@ -853,6 +855,7 @@
 
         <meta-data android:name="com.google.android.maps.v2.API_KEY" android:value="AIzaSyDE_x6GRKJCSfCY33soBYUQ2piYsgjVpVE" />
         <uses-library android:name="com.google.android.maps" android:required="false"/>
+        <uses-library android:name="org.apache.http.legacy" android:required="false" />
 
         <meta-data
             android:name="firebase_analytics_collection_deactivated"
@@ -876,8 +879,24 @@
 
         <!--<meta-data android:name="com.google.android.gms.wallet.api.enabled" android:value="true" />-->
 
+        <!--
         <meta-data android:name="com.google.android.gms.car.notification.SmallIcon" android:resource="@drawable/ic_player" />
         <meta-data android:name="com.google.android.gms.car.application" android:resource="@xml/automotive_app_desc" />
+
+        <service
+            android:name="org.telegram.messenger.car.TelegramCarAppService"
+            android:exported="true"
+            android:foregroundServiceType="connectedDevice">
+            <intent-filter>
+                <action android:name="androidx.car.app.CarAppService" />
+                <category android:name="androidx.car.app.category.MESSAGING" />
+            </intent-filter>
+        </service>
+
+        <meta-data
+            android:name="androidx.car.app.minCarApiLevel"
+            android:value="5" />
+        -->
 
         <!--<meta-data android:name="com.google.android.gms.vision.DEPENDENCIES" android:value="face,barcode" />-->
 

@@ -340,6 +340,26 @@ public class ConnectionsManager extends BaseController {
         }, null, null, null, requestFlags, dcId, ConnectionTypeGeneric, true);
     }
 
+
+
+    public int sendRequestTypedAndProcessUpdates(TLMethod<TLRPC.Updates> method, Executor executor, Utilities.Callback2<TLRPC.Updates, TLRPC.TL_error> completionBlock) {
+        return sendRequestTypedAndProcessUpdates(method, executor, completionBlock, DEFAULT_DATACENTER_ID, 0);
+    }
+
+    public int sendRequestTypedAndProcessUpdates(TLMethod<TLRPC.Updates> method, Executor executor, Utilities.Callback2<TLRPC.Updates, TLRPC.TL_error> completionBlock, int dcId, int requestFlags) {
+        return sendRequestTyped(method, null, (result, err) -> {
+            if (result != null) {
+                getMessagesController().processUpdates(result, false);
+            }
+            if (executor != null) {
+                executor.execute(() -> completionBlock.run(result, err));
+            } else {
+                completionBlock.run(result, err);
+            }
+        }, dcId, requestFlags);
+    }
+
+
     public int sendRequest(TLObject object, RequestDelegate completionBlock) {
         return sendRequest(object, completionBlock, null, 0);
     }
@@ -708,7 +728,7 @@ public class ConnectionsManager extends BaseController {
 
     public void switchBackend(boolean restart) {
         SharedPreferences preferences = MessagesController.getGlobalMainSettings();
-        preferences.edit().remove("language_showed2").commit();
+        preferences.edit().remove("language_showed3").commit();
         native_switchBackend(currentAccount, restart);
     }
 

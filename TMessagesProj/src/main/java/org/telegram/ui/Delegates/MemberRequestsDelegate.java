@@ -129,7 +129,7 @@ public class MemberRequestsDelegate implements MemberRequestCell.OnClickListener
     public FrameLayout getRootLayout() {
         if (rootLayout == null) {
             rootLayout = new FrameLayout(fragment.getParentActivity());
-            rootLayout.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite, fragment.getResourceProvider()));
+            rootLayout.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundGray, fragment.getResourceProvider()));
 
             loadingView = getLoadingView();
             rootLayout.addView(loadingView, MATCH_PARENT, MATCH_PARENT);
@@ -143,6 +143,7 @@ public class MemberRequestsDelegate implements MemberRequestCell.OnClickListener
             LinearLayoutManager layoutManager = new LinearLayoutManager(fragment.getParentActivity());
             recyclerView = new RecyclerListView(fragment.getParentActivity());
             recyclerView.setAdapter(adapter);
+            recyclerView.setSections();
             recyclerView.setLayoutManager(layoutManager);
             recyclerView.setOnItemClickListener(this::onItemClick);
             recyclerView.setOnScrollListener(listScrollListener);
@@ -157,6 +158,10 @@ public class MemberRequestsDelegate implements MemberRequestCell.OnClickListener
             recyclerView.setItemAnimator(itemAnimator);
         }
         return rootLayout;
+    }
+
+    public RecyclerListView getRecyclerView() {
+        return recyclerView;
     }
 
     public void setShowLastItemDivider(boolean showLastItemDivider) {
@@ -232,36 +237,44 @@ public class MemberRequestsDelegate implements MemberRequestCell.OnClickListener
 
     public void onItemClick(View view, int position) {
         if (view instanceof MemberRequestCell) {
-            if (isSearchExpanded) {
-                AndroidUtilities.hideKeyboard(fragment.getParentActivity().getCurrentFocus());
-            }
-            MemberRequestCell cell = (MemberRequestCell) view;
-            AndroidUtilities.runOnUIThread(() -> {
-                importer = cell.getImporter();
-                TLRPC.User user = users.get(importer.user_id);
-                if (user == null) {
-                    return;
-                }
-                fragment.getMessagesController().putUser(user, false);
-                boolean isLandscape = AndroidUtilities.displaySize.x > AndroidUtilities.displaySize.y;
-                boolean showProfile = user.photo == null || isLandscape;
-                if (showProfile) {
-                    isNeedRestoreList = true;
-                    fragment.dismissCurrentDialog();
-                    Bundle args = new Bundle();
-                    ProfileActivity profileActivity = new ProfileActivity(args);
-                    args.putLong("user_id", user.id);
-                    args.putBoolean("removeFragmentOnChatOpen", false);
-                    fragment.presentFragment(profileActivity);
-                } else if (previewDialog == null) {
-                    RecyclerListView parentListView = (RecyclerListView) cell.getParent();
-                    previewDialog = new PreviewDialog(fragment.getParentActivity(), parentListView, fragment.getResourceProvider(), isChannel);
-                    previewDialog.setImporter(importer, cell.getAvatarImageView());
-                    previewDialog.setOnDismissListener(dialog -> previewDialog = null);
-                    previewDialog.show();
-                }
-            }, isSearchExpanded ? 100 : 0);
+            openImporter((MemberRequestCell) view, false);
         }
+    }
+
+    @Override
+    public void onAvatarClicked(MemberRequestCell cell) {
+        openImporter(cell, true);
+    }
+
+    private void openImporter(MemberRequestCell cell, boolean fromAvatar) {
+        if (isSearchExpanded) {
+            AndroidUtilities.hideKeyboard(fragment.getParentActivity().getCurrentFocus());
+        }
+        AndroidUtilities.runOnUIThread(() -> {
+            importer = cell.getImporter();
+            TLRPC.User user = users.get(importer.user_id);
+            if (user == null) {
+                return;
+            }
+            fragment.getMessagesController().putUser(user, false);
+            boolean isLandscape = AndroidUtilities.displaySize.x > AndroidUtilities.displaySize.y;
+            boolean showProfile = !fromAvatar || user.photo == null || isLandscape;
+            if (showProfile) {
+                isNeedRestoreList = true;
+                fragment.dismissCurrentDialog();
+                Bundle args = new Bundle();
+                ProfileActivity profileActivity = new ProfileActivity(args);
+                args.putLong("user_id", user.id);
+                args.putBoolean("removeFragmentOnChatOpen", false);
+                fragment.presentFragment(profileActivity);
+            } else if (previewDialog == null) {
+                RecyclerListView parentListView = (RecyclerListView) cell.getParent();
+                previewDialog = new PreviewDialog(fragment.getParentActivity(), parentListView, fragment.getResourceProvider(), isChannel);
+                previewDialog.setImporter(importer, cell.getAvatarImageView());
+                previewDialog.setOnDismissListener(dialog -> previewDialog = null);
+                previewDialog.show();
+            }
+        }, isSearchExpanded ? 100 : 0);
     }
 
     public boolean onBackPressed(boolean invoked) {
@@ -591,12 +604,10 @@ public class MemberRequestsDelegate implements MemberRequestCell.OnClickListener
                 default:
                 case 0:
                     MemberRequestCell cell = new MemberRequestCell(parent.getContext(), MemberRequestsDelegate.this, isChannel);
-                    cell.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite, fragment.getResourceProvider()));
                     view = cell;
                     break;
                 case 1:
                     view = new View(parent.getContext());
-                    view.setBackground(Theme.getThemedDrawableByKey(parent.getContext(), R.drawable.greydivider_bottom, Theme.key_windowBackgroundGrayShadow));
                     break;
                 case 2:
                     view = new View(parent.getContext()) {
@@ -605,6 +616,7 @@ public class MemberRequestsDelegate implements MemberRequestCell.OnClickListener
                             super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(AndroidUtilities.dp(52), MeasureSpec.EXACTLY));
                         }
                     };
+                    view.setTag(RecyclerListView.TAG_NOT_SECTION);
                     break;
                 case 3:
                     view = new View(parent.getContext());
@@ -627,6 +639,7 @@ public class MemberRequestsDelegate implements MemberRequestCell.OnClickListener
                     loadingView.setMemberRequestButton(isChannel);
                     loadingView.setIsSingleCell(true);
                     loadingView.setItemsCount(1);
+                    loadingView.setTag(RecyclerListView.TAG_NOT_SECTION);
                     view = loadingView;
                     break;
             }
@@ -877,8 +890,8 @@ public class MemberRequestsDelegate implements MemberRequestCell.OnClickListener
             final ImageLocation imageLocation;
             final ImageLocation thumbLocation;
             TLRPC.User currentUser = MessagesController.getInstance(currentAccount).getUser(importer.user_id);
-            imageLocation = ImageLocation.getForUserOrChat(currentUser, ImageLocation.TYPE_BIG);
-            thumbLocation = ImageLocation.getForUserOrChat(currentUser, ImageLocation.TYPE_SMALL);
+            imageLocation = ImageLocation.getForUserOrChat(currentAccount, currentUser, ImageLocation.TYPE_BIG);
+            thumbLocation = ImageLocation.getForUserOrChat(currentAccount, currentUser, ImageLocation.TYPE_SMALL);
             final TLRPC.UserFull userFull = MessagesController.getInstance(currentAccount).getUserFull(importer.user_id);
             if (userFull == null) {
                 MessagesController.getInstance(currentAccount).loadUserInfo(currentUser, false, 0);

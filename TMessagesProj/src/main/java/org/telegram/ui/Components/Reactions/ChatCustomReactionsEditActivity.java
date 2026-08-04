@@ -138,7 +138,6 @@ public class ChatCustomReactionsEditActivity extends BaseFragment implements Not
                 checkMaxCustomReactions(false);
             }
         });
-        getNotificationCenter().addObserver(this, NotificationCenter.reactionsDidLoad);
         allAvailableReactions.addAll(getMediaDataController().getEnabledReactionsList());
         NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.stopAllHeavyOperations, 512);
         getNotificationCenter().addObserver(this, NotificationCenter.dialogDeleted);
@@ -343,6 +342,7 @@ public class ChatCustomReactionsEditActivity extends BaseFragment implements Not
         actionButtonContainer.addView(actionButtonContainerGradient, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT, Gravity.FILL));
 
         actionButton = new UpdateReactionsButton(context, getResourceProvider());
+        actionButton.setRound();
         actionButton.setDefaultState();
         actionButton.setOnClickListener(v -> {
             if (actionButton.isLoading()) {
@@ -521,7 +521,15 @@ public class ChatCustomReactionsEditActivity extends BaseFragment implements Not
                         AnimatedEmojiSpan span = createAnimatedEmojiSpan(document, documentId, editText.getFontMetricsInt());
                         span.cacheType = AnimatedEmojiDrawable.getCacheTypeForEnterView();
                         span.setAdded();
-                        selectedEmojisIds.add(selectionEnd, documentId);
+                        Editable text = editText.getText();
+                        AnimatedEmojiSpan[] allSpans = text.getSpans(0, text.length(), AnimatedEmojiSpan.class);
+                        int insertionIndex = 0;
+                        for (AnimatedEmojiSpan s : allSpans) {
+                            if (text.getSpanStart(s) < selectionEnd) {
+                                insertionIndex++;
+                            }
+                        }
+                        selectedEmojisIds.add(insertionIndex, documentId);
                         selectedEmojisMap.put(documentId, span);
                         spannable.setSpan(span, 0, spannable.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                         editText.getText().insert(selectionEnd, spannable);
@@ -883,6 +891,11 @@ public class ChatCustomReactionsEditActivity extends BaseFragment implements Not
                 public void onAnimationEnd(Animator animation) {
                     NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.startAllHeavyOperations, 512);
                     bottomDialogLayout.setVisibility(View.INVISIBLE);
+                    if (selectedType != SELECT_TYPE_NONE || paid) {
+                        actionButtonContainer.animate().setListener(null).cancel();
+                        actionButtonContainer.setVisibility(View.VISIBLE);
+                        actionButtonContainer.animate().alpha(1.0f).start();
+                    }
                     if (isClearFocusNotWorking()) {
                         switchLayout.setFocusableInTouchMode(false);
                     }

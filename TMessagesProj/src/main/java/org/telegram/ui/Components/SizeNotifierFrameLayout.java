@@ -58,7 +58,6 @@ import org.telegram.ui.ChatBackgroundDrawable;
 import java.util.ArrayList;
 import java.util.HashSet;
 
-import tw.nekomimi.nekogram.NekoConfig;
 import xyz.nextalone.nagram.NaConfig;
 
 public class SizeNotifierFrameLayout extends FrameLayout implements Theme.Colorable {
@@ -229,7 +228,7 @@ public class SizeNotifierFrameLayout extends FrameLayout implements Theme.Colora
                 if (drawable instanceof MotionBackgroundDrawable) {
                     MotionBackgroundDrawable motionBackgroundDrawable = (MotionBackgroundDrawable) drawable;
                     if (motionBackgroundDrawable.hasPattern()) {
-                        int actionBarHeight = (isActionBarVisible() ? ActionBar.getCurrentActionBarHeight() : 0) + (isStatusBarVisible() && Build.VERSION.SDK_INT >= 21 && occupyStatusBar ? AndroidUtilities.statusBarHeight : 0);
+                        int actionBarHeight = (isActionBarVisible() ? ActionBar.getCurrentActionBarHeight() : 0) + (isStatusBarVisible() && occupyStatusBar ? AndroidUtilities.statusBarHeight : 0);
                         int viewHeight = useRootView() ? getRootView().getMeasuredHeight() - actionBarHeight : getHeight();
                         float scaleX = (float) getMeasuredWidth() / (float) drawable.getIntrinsicWidth();
                         float scaleY = (float) (viewHeight) / (float) drawable.getIntrinsicHeight();
@@ -251,11 +250,6 @@ public class SizeNotifierFrameLayout extends FrameLayout implements Theme.Colora
                         }
                         motionBackgroundDrawable.setTranslationY(backgroundTranslationY);
                         int bottom = (int) (getRootView().getMeasuredHeight() - backgroundTranslationY + translationY);
-                        if (animationInProgress) {
-                            bottom -= emojiOffset;
-                        } else if (emojiHeight != 0) {
-                            bottom -= emojiHeight;
-                        }
                         drawable.setBounds(0, 0, getMeasuredWidth(), bottom);
                         drawable.draw(canvas);
                         if (bottomClip != 0) {
@@ -295,7 +289,7 @@ public class SizeNotifierFrameLayout extends FrameLayout implements Theme.Colora
                         checkSnowflake(canvas);
                         canvas.restore();
                     } else {
-                        int actionBarHeight = (isActionBarVisible() ? ActionBar.getCurrentActionBarHeight() : 0) + (isStatusBarVisible() && Build.VERSION.SDK_INT >= 21 && occupyStatusBar ? AndroidUtilities.statusBarHeight : 0);
+                        int actionBarHeight = (isActionBarVisible() ? ActionBar.getCurrentActionBarHeight() : 0) + (isStatusBarVisible() && occupyStatusBar ? AndroidUtilities.statusBarHeight : 0);
                         int viewHeight = useRootView() ? getRootView().getMeasuredHeight() - actionBarHeight : getHeight();
                         float scaleX = (float) getMeasuredWidth() / (float) drawable.getIntrinsicWidth();
                         float scaleY = (float) (viewHeight) / (float) drawable.getIntrinsicHeight();
@@ -527,11 +521,6 @@ public class SizeNotifierFrameLayout extends FrameLayout implements Theme.Colora
 
     public int getBackgroundTranslationY() {
         if (backgroundDrawable instanceof MotionBackgroundDrawable) {
-            if (animationInProgress) {
-                return (int) emojiOffset;
-            } else if (emojiHeight != 0) {
-                return emojiHeight;
-            }
             return backgroundTranslationY;
         } else if (backgroundDrawable instanceof ChatBackgroundDrawable) {
             return backgroundTranslationY;
@@ -541,20 +530,7 @@ public class SizeNotifierFrameLayout extends FrameLayout implements Theme.Colora
 
     public int getBackgroundSizeY() {
         int offset = 0;
-        if (backgroundDrawable instanceof MotionBackgroundDrawable) {
-            MotionBackgroundDrawable motionBackgroundDrawable = (MotionBackgroundDrawable) backgroundDrawable;
-            if (!motionBackgroundDrawable.hasPattern()) {
-                if (animationInProgress) {
-                    offset = (int) emojiOffset;
-                } else if (emojiHeight != 0) {
-                    offset = emojiHeight;
-                } else {
-                    offset = backgroundTranslationY;
-                }
-            } else {
-                offset = backgroundTranslationY != 0 ? 0 : -keyboardHeight;
-            }
-        } else if (backgroundDrawable instanceof ChatBackgroundDrawable) {
+        if (backgroundDrawable instanceof ChatBackgroundDrawable) {
             offset = backgroundTranslationY;
         }
         return getMeasuredHeight() - offset;
@@ -639,7 +615,6 @@ public class SizeNotifierFrameLayout extends FrameLayout implements Theme.Colora
         }
 
         int blurAlpha = Color.alpha(Theme.getColor(Theme.key_chat_BlurAlphaSlow));
-        if (NekoConfig.forceBlurInChat.Bool()) blurAlpha = NekoConfig.chatBlueAlphaValue.Int();
         if (blurAlpha == 255) {
             return;
         }
@@ -1000,7 +975,6 @@ public class SizeNotifierFrameLayout extends FrameLayout implements Theme.Colora
     }
 
     public void drawBlurRect(Canvas canvas, float y, Rect rectTmp, Paint blurScrimPaint, boolean top, int blurAlpha) {
-        if (NekoConfig.forceBlurInChat.Bool()) blurAlpha = NekoConfig.chatBlueAlphaValue.Int();
         if (!SharedConfig.chatBlurEnabled()) {
             canvas.drawRect(rectTmp, blurScrimPaint);
             return;

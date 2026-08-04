@@ -332,4 +332,11 @@
     <string name="TabletModeOn">Вкл.</string>
     <string name="TabletModeOff">Выкл.</string>
     <string name="HideDialogsSearchField">Скрыть поле поиска</string>
+    <string name="DeepLTranslateKey">Ключ API DeepL</string>
+    <string name="DeepLTranslateKeyNotice">Настройте ключ API DeepL. Оставьте поле пустым, чтобы использовать встроенные учётные данные.</string>
+    <string name="DefaultScheduleDelay">Задержка по умолчанию</string>
+    <string name="ExportAyuDB">Экспорт базы данных</string>
+    <string name="ImportAyuDB">Импорт базы данных</string>
+    <string name="ImportAyuDBAlert">Текущая база данных сообщений будет заменена. После импорта приложение перезапустится.</string>
+    <string name="DisableSwipeToNext">Отключить переход к следующему</string>
 </resources>

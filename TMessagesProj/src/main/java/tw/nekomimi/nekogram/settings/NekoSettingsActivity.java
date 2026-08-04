@@ -100,8 +100,8 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
         experimentRow = addRow();
         categoriesEndRow = addRow();
 
-        importSettingsRow = addRow();
         exportSettingsRow = addRow();
+        importSettingsRow = addRow();
         resetSettingsRow = addRow();
         appRestartRow = addRow();
         nSettingsEndRow = addRow();
@@ -170,7 +170,7 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
 
             ImageView searchIcon = new ImageView(parent);
             searchIcon.setScaleType(ImageView.ScaleType.CENTER);
-            searchIcon.setImageResource(R.drawable.ic_ab_search);
+            searchIcon.setImageResource(R.drawable.ic_ab_search_solar);
             searchIcon.setColorFilter(new PorterDuffColorFilter(getThemedColor(Theme.key_windowBackgroundWhiteGrayIcon), PorterDuff.Mode.MULTIPLY));
             searchFrame.addView(searchIcon, LayoutHelper.createFrame(48, 48, Gravity.LEFT | Gravity.CENTER_VERTICAL));
 
@@ -403,9 +403,9 @@ public class NekoSettingsActivity extends BaseNekoSettingsActivity {
                     } else if (position == experimentRow) {
                         textCell.setTextAndIcon(getString(R.string.Experimental), R.drawable.msg_fave, true);
                     } else if (position == importSettingsRow) {
-                        textCell.setTextAndIcon(getString(R.string.ImportSettings), R.drawable.msg_photo_settings_solar, true);
+                        textCell.setTextAndIcon(getString(R.string.ImportSettings), R.drawable.import_solar, true);
                     } else if (position == exportSettingsRow) {
-                        textCell.setTextAndIcon(getString(R.string.BackupSettings), R.drawable.msg_instant_link_solar, true);
+                        textCell.setTextAndIcon(getString(R.string.BackupSettings), R.drawable.export_solar, true);
                     } else if (position == resetSettingsRow) {
                         textCell.setTextAndIcon(getString(R.string.ResetSettings), R.drawable.msg_reset_solar, true);
                     } else if (position == appRestartRow) {

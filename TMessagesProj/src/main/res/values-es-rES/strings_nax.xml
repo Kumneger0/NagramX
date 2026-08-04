@@ -71,6 +71,8 @@
     <string name="UnshadowBan">Unshadow Ban</string>
     <string name="ShadowBanAdded">Añadido a **filtros de usuario**.</string>
     <string name="ShadowBanRemoved">Eliminado de **filtros de usuario**.</string>
+    <string name="ShadowBanChannelAdded">Añadido a **filtros de canales**.</string>
+    <string name="ShadowBanChannelRemoved">Eliminado de **filtros de canales**.</string>
     <string name="botCommandConfirmTitle">Enviar comando</string>
     <string name="botCommandConfirmText">¿Quieres enviar este comando?\n\n%s</string>
     <string name="MessageSavingSaveMedia">Guardar Multimedia</string>
@@ -202,15 +204,16 @@
     <string name="CreateCode">Crear Código</string>
     <string name="CreateCodeLanguage">Idioma</string>
     <string name="NoCaptionForward">Reenviar sin descripción</string>
+    <string name="NoCaptionForwardShort">Sin leyenda</string>
     <string name="PreferCommonGroupsTab">Pestaña Grupos preferidos</string>
     <string name="PreferCommonGroupsTabNotice">Seleccionar automáticamente la pestaña \"Grupos\" en lugar de \"Regalos\" cuando sea posible.</string>
     <string name="GroupedMessageMenu">Menú de mensaje de grupo</string>
     <string name="GroupedMessageMenuNotice">La agrupación mueve las acciones principales a la parte inferior del menú de mensajes.</string>
     <string name="CopySticker">Copiar sticker</string>
     <string name="CheckUpdate">Comprobar actualizaciones</string>
-    <string name="AutoCheckUpdateOFF">DESACTIVADO</string>
+    <string name="AutoCheckUpdateOFF">Apagado</string>
     <string name="AutoCheckUpdateSwitch">Canal de actualización</string>
-    <string name="AutoCheckUpdateRelease">Versión</string>
+    <string name="AutoCheckUpdateRelease">Release - Estable</string>
     <string name="AutoCheckUpdateBeta">Beta</string>
     <string name="YourVersionIsLatestNax">Su versión está actualizada.</string>
     <string name="PremiumElements">Elementos prémium</string>
@@ -324,4 +327,12 @@
     <string name="TranslatorWithOriginalTextOff">Desactivado</string>
     <string name="TranslatorWithOriginalTextManualOnly">Manual Only</string>
     <string name="TranslatorWithOriginalTextOn">Activado</string>
+    <string name="CenterActionBarTitleOn">Activado</string>
+    <string name="CenterActionBarTitleOff">Desactivado</string>
+    <string name="TabletModeOn">Activado</string>
+    <string name="TabletModeOff">Desactivado</string>
+    <string name="HideDialogsSearchField">Ocultar cuadro de búsqueda</string>
+    <string name="DeepLTranslateKey">Clave de API de DeepL</string>
+    <string name="DeepLTranslateKeyNotice">Configura la clave de la API de DeepL, deja en blanco para usar las credenciales integradas.</string>
+    <string name="DefaultScheduleDelay">Retraso predeterminado</string>
 </resources>
